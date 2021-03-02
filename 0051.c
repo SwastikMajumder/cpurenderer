@@ -439,17 +439,17 @@ int main(int argc, char *argv[]) {
 	struct COLOR_MIX *frame_buffer = malloc(RADIUS*RADIUS*4 * sizeof(struct COLOR_MIX));
 	struct TRIANGLE_3D_FLOAT *list = malloc(WALL_0002_SIZE(4, 2) * sizeof(struct TRIANGLE_3D_FLOAT));
 	
-	int index = new_index(list, WALL_0002_SIZE(4, 2), WALL_0002_SIZE(4, 2));
+	int index = new_index(list, WALL_0002_SIZE(2, 2), WALL_0002_SIZE(2, 2));
 	
 	struct POINT_3D_FLOAT location = {.X = -200.0f, .Y = 0.0f, .Z = 250.0f };
 
 	obj_wall_0002(list, index, &location, 2, 2, 255, 0, 0);
-	rotate_camera(list, index, WALL_0002_SIZE(4, 2), 0.0f, (10 * M_PI)/180, 0.0f);
+	rotate_camera(list, index, WALL_0002_SIZE(2, 2), 0.0f, (10 * M_PI)/180, 0.0f);
 	
-	zbuffer(list, WALL_0002_SIZE(4, 2), frame_buffer);
+	zbuffer(list, WALL_0002_SIZE(2, 2), frame_buffer);
 	draw_buffer(renderer, frame_buffer);
 	
-	delete_index(list, index, WALL_0002_SIZE(4, 2));
+	delete_index(list, index, WALL_0002_SIZE(2, 2));
 	free(list);
 	free(frame_buffer);
 	
