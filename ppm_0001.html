@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>Read Text File</title>
+</head>
+
+<body>
+  <input type = "file" name = "inputfile" id= "inputfile">
+  <br>
+
+  <canvas id="myCanvas" width="500" height="500"></canvas>
+<script type = "text/javascript">
+    document.getElementById('inputfile').addEventListener('change', function() {
+
+    var fr = new FileReader();
+    fr.onload = function(){
+      var str = fr.result;
+      var c= document.getElementById("myCanvas");
+      var ctx = c.getContext("2d");
+      var  imgData = ctx.createImageData(500, 500);
+      
+      var i;
+      var word = str.split(' ');
+       var j=0;
+      for (i=0; i<500*500*4; i+=4){
+        imgData.data[i] = parseInt(word[j]);
+        imgData.data[i+1] = parseInt(word[j + 1]);
+        imgData.data[i+2] = parseInt(word[j + 2]);
+        imgData.data[i+3] = 255;
+        j += 3;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      
+    }
+    fr.readAsText(this.files[0], "ascii");
+  })
+  </script>
+</body>
+
+</html>
