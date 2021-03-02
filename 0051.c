@@ -437,7 +437,7 @@ int main(int argc, char *argv[]) {
 	//int i;
 	
 	struct COLOR_MIX *frame_buffer = malloc(RADIUS*RADIUS*4 * sizeof(struct COLOR_MIX));
-	struct TRIANGLE_3D_FLOAT *list = malloc(WALL_0002_SIZE(4, 2) * sizeof(struct TRIANGLE_3D_FLOAT));
+	struct TRIANGLE_3D_FLOAT *list = malloc(WALL_0002_SIZE(2, 2) * sizeof(struct TRIANGLE_3D_FLOAT));
 	
 	int index = new_index(list, WALL_0002_SIZE(2, 2), WALL_0002_SIZE(2, 2));
 	
