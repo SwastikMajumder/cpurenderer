@@ -4,9 +4,13 @@
 #include <stdio.h>
 #include <SDL.h>
 
+#define T_S_XY(a, b) (13 + ((a) > 99 ? 1 : 0) + ((b) > 99 ? 1 : 0))
+
+#define TOTAL_SIZE 22
+
 //Length and breadth of square texture or image
 //We read it in the form of binary ppm file
-#define TEXTURE_LENGTH 100
+#define TEXTURE_LENGTH 200
 
 //Radius of a circle inside the squared screen
 #define RADIUS 250
@@ -27,7 +31,11 @@
 #define MINIMUM_VALUE(a, b, c) (((a) < (b)) ? (((c) < (a)) ? (c) : (a)) : (((c) < (b)) ? (c) : (b)))
 
 //Load the texture file for the box
-char *input_texture_file = "texture0006.ppm";
+char *input_texture_file = "guard_tower_2.ppm";
+char *input_texture_file_2 = "wall_1.ppm";
+char *input_texture_file_3 = "red_1.ppm";
+char *input_texture_file_4 = "red_2.ppm";
+//char *input_texture_file_5 = "ground_2.ppm";
 
 //Stores a point
 struct POINT_3D_FLOAT {
@@ -51,9 +59,12 @@ struct COLOR_MIX {
 struct TRIANGLE_3D_FLOAT {
     char *TEXTURE;
     int IS_TEXTURE;
+    int TEXTURE_X;
+    int TEXTURE_Y;
 	struct COLOR_MIX COLOR;
 	struct POINT_3D_FLOAT *TRIANGLE;
 };
+
 
 //Find the vector perpendicular to the plane which is formed by three points
 void normal_vector(struct POINT_3D_FLOAT *p, struct POINT_3D_FLOAT *q, struct POINT_3D_FLOAT *r, float *a, float *b, float *c){
@@ -193,7 +204,7 @@ void zbuffer(struct TRIANGLE_3D_FLOAT *list, int list_length, float *depth_buffe
 						else {
                             //rect con will change the texture point as of the previous triangle
                             //if we are looking at the second triangle of the rectangle
-							rect_con = list[i].IS_TEXTURE - 1;
+							rect_con = (list[i].IS_TEXTURE & 3) - 1;
 						    u = list[i-rect_con].TRIANGLE;
 						    v = (list[i-rect_con].TRIANGLE) + 1;
                             //Make vector of one side of the triangle
@@ -218,17 +229,29 @@ void zbuffer(struct TRIANGLE_3D_FLOAT *list, int list_length, float *depth_buffe
 						    float cos_theta = (uv_dot_us)/(h * (sqrt(m_uv)));
 						    float sin_theta = sqrt(1 - (cos_theta * cos_theta));
 
+						    int tx_x;
+						    int tx_y;
+						    //if (list[i-rect_con].IS_TEXTURE & 4){
+                            //    tx_x = list[i-rect_con].TEXTURE_Y;
+                            //    tx_y = list[i-rect_con].TEXTURE_X;
+						    //} else {
+                                tx_x = list[i-rect_con].TEXTURE_X;
+                                tx_y = list[i-rect_con].TEXTURE_Y;
+						    //}
+                            int x_sc;
+                            int y_sc;
 						    //Make the texture repeat over time
-						    int x_sc = (int)(sin_theta*h);
-						    x_sc = x_sc % TEXTURE_LENGTH;
+                            x_sc = (int)(sin_theta*h);
+                            x_sc = x_sc % tx_y;
 
-						    int y_sc = (int)(cos_theta*h);
-						    y_sc = y_sc % TEXTURE_LENGTH;
+                            y_sc = (int)(cos_theta*h);
+                            y_sc = y_sc % tx_y;
+
 
 						    //Ignore the heading in the ppm file and put pixel to the frame buffer
-						    frame_buffer[j*RADIUS*2 + k].RED = list[i-rect_con].TEXTURE[12+y_sc*TEXTURE_LENGTH*3 + x_sc*3];
-						    frame_buffer[j*RADIUS*2 + k].GREEN = list[i-rect_con].TEXTURE[12+y_sc*TEXTURE_LENGTH*3 + x_sc*3 + 1];
-						    frame_buffer[j*RADIUS*2 + k].BLUE = list[i-rect_con].TEXTURE[12+y_sc*TEXTURE_LENGTH*3 + x_sc*3 + 2];
+						    frame_buffer[j*RADIUS*2 + k].RED = list[i-rect_con].TEXTURE[T_S_XY(tx_x, tx_y)+y_sc*tx_x*3 + x_sc*3];
+						    frame_buffer[j*RADIUS*2 + k].GREEN = list[i-rect_con].TEXTURE[T_S_XY(tx_x, tx_y)+y_sc*tx_x*3 + x_sc*3 + 1];
+						    frame_buffer[j*RADIUS*2 + k].BLUE = list[i-rect_con].TEXTURE[T_S_XY(tx_x, tx_y)+y_sc*tx_x*3 + x_sc*3 + 2];
 
 						}
 
@@ -290,11 +313,13 @@ void delete_index(struct TRIANGLE_3D_FLOAT *list, int index, int size){
 }
 
 //A simple rectangle with a texture with four points
-void obj_rectangle_0001(struct TRIANGLE_3D_FLOAT *list, char *texture, int index, struct POINT_3D_FLOAT *point){
+void obj_rectangle_0001(struct TRIANGLE_3D_FLOAT *list, char *texture, int index, struct POINT_3D_FLOAT *point, int tex_x, int tex_y){
     list[index].TEXTURE = texture;
     list[index].IS_TEXTURE = 1;
     list[index+1].IS_TEXTURE = 2;
     list[index+1].TEXTURE = NULL;
+    list[index].TEXTURE_X = tex_x;
+    list[index].TEXTURE_Y = tex_y;
     memcpy(list[index].TRIANGLE, point, 3 * sizeof(struct POINT_3D_FLOAT));
     memcpy(list[index+1].TRIANGLE, point+1, 3 * sizeof(struct POINT_3D_FLOAT));
 }
@@ -362,6 +387,58 @@ void obj_rectangle_0003(struct TRIANGLE_3D_FLOAT *list, int index, float x, floa
 
     list[index+1].TRIANGLE[2].X = x+b;
     list[index+1].TRIANGLE[2].Y = y;
+    list[index+1].TRIANGLE[2].Z = z+l;
+}
+
+void obj_rectangle_0004(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z, float l, float b){
+    list[index].TRIANGLE[0].X = x;
+    list[index].TRIANGLE[0].Y = y;
+    list[index].TRIANGLE[0].Z = z;
+
+    list[index].TRIANGLE[1].X = x+l;
+    list[index].TRIANGLE[1].Y = y;
+    list[index].TRIANGLE[1].Z = z;
+
+    list[index].TRIANGLE[2].X = x;
+    list[index].TRIANGLE[2].Y = y+b;
+    list[index].TRIANGLE[2].Z = z;
+
+    list[index+1].TRIANGLE[0].X = x+l;
+    list[index+1].TRIANGLE[0].Y = y;
+    list[index+1].TRIANGLE[0].Z = z;
+
+    list[index+1].TRIANGLE[1].X = x;
+    list[index+1].TRIANGLE[1].Y = y+b;
+    list[index+1].TRIANGLE[1].Z = z;
+
+    list[index+1].TRIANGLE[2].X = x+l;
+    list[index+1].TRIANGLE[2].Y = y+b;
+    list[index+1].TRIANGLE[2].Z = z;
+}
+
+void obj_rectangle_0005(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z, float l, float b){
+    list[index].TRIANGLE[0].X = x;
+    list[index].TRIANGLE[0].Y = y;
+    list[index].TRIANGLE[0].Z = z;
+
+    list[index].TRIANGLE[1].X = x;
+    list[index].TRIANGLE[1].Y = y;
+    list[index].TRIANGLE[1].Z = z+l;
+
+    list[index].TRIANGLE[2].X = x;
+    list[index].TRIANGLE[2].Y = y+b;
+    list[index].TRIANGLE[2].Z = z;
+
+    list[index+1].TRIANGLE[0].X = x;
+    list[index+1].TRIANGLE[0].Y = y;
+    list[index+1].TRIANGLE[0].Z = z+l;
+
+    list[index+1].TRIANGLE[1].X = x;
+    list[index+1].TRIANGLE[1].Y = y+b;
+    list[index+1].TRIANGLE[1].Z = z;
+
+    list[index+1].TRIANGLE[2].X = x;
+    list[index+1].TRIANGLE[2].Y = y+b;
     list[index+1].TRIANGLE[2].Z = z+l;
 }
 
@@ -627,6 +704,377 @@ void draw_buffer(SDL_Renderer *renderer, struct COLOR_MIX *frame_buffer){
     SDL_RenderPresent(renderer);
 }
 
+void obj_talldefense_0001(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z){
+    int i, j;
+    for (i=0; i<2; ++i){
+        obj_rectangle_0004(list, index+12*i, x, y, z, 50.0f, 150.0f);
+        fill_color(list, index+12*i, 2, 247, 255, 0);
+        obj_rectangle_0004(list, index+2+12*i, x+50.0f, y, z, 50.0f, 150.0f);
+        fill_color(list, index+2+12*i, 2, 0, 0, 255);
+        obj_rectangle_0004(list, index+4+12*i, x, y+150.0f, z, 50.0f, 37.5f);
+        fill_color(list, index+4+12*i, 2, 255, 140, 0);
+        obj_rectangle_0004(list, index+6+12*i, x+50.0f, y+150.0f, z, 50.0f, 37.5f);
+        fill_color(list, index+6+12*i, 2, 247, 255, 0);
+        obj_rectangle_0004(list, index+8+12*i, x, y+187.5f, z, 50.0f, 12.5f);
+        fill_color(list, index+8+12*i, 2, 247, 255, 0);
+        obj_rectangle_0004(list, index+10+12*i, x+50.0f, y+187.5f, z, 50.0f, 12.5f);
+        fill_color(list, index+10+12*i, 2, 124, 252, 0);
+    }
+    for (i=12; i<24; ++i){
+        for (j=0; j<3; ++j){
+            list[index+i].TRIANGLE[j].Z += 100.0f;
+        }
+    }
+    for (i=2; i<4; ++i){
+        obj_rectangle_0005(list, index+12*i, x, y, z, 50.0f, 150.0f);
+        fill_color(list, index+12*i, 2, 247, 255, 0);
+        obj_rectangle_0005(list, index+2+12*i, x, y, z+50.0f, 50.0f, 150.0f);
+        fill_color(list, index+2+12*i, 2, 0, 0, 255);
+        obj_rectangle_0005(list, index+4+12*i, x, y+150.0f, z, 50.0f, 37.5f);
+        fill_color(list, index+4+12*i, 2, 255, 140, 0);
+        obj_rectangle_0005(list, index+6+12*i, x, y+150.0f, z+50.0f, 50.0f, 37.5f);
+        fill_color(list, index+6+12*i, 2, 247, 255, 0);
+        obj_rectangle_0005(list, index+8+12*i, x, y+187.5f, z, 50.0f, 12.5f);
+        fill_color(list, index+8+12*i, 2, 247, 255, 0);
+        obj_rectangle_0005(list, index+10+12*i, x, y+187.5f, z+50.0f, 50.0f, 12.5f);
+        fill_color(list, index+10+12*i, 2, 124, 252, 0);
+    }
+    for (i=36; i<48; ++i){
+        for (j=0; j<3; ++j){
+            list[index+i].TRIANGLE[j].X += 100.0f;
+        }
+    }
+}
+
+void obj_rectangle_0006(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z, float l, float b){
+    list[index].TRIANGLE[0].X = x;
+    list[index].TRIANGLE[0].Y = y;
+    list[index].TRIANGLE[0].Z = z;
+
+    list[index].TRIANGLE[1].X = x+l;
+    list[index].TRIANGLE[1].Y = y;
+    list[index].TRIANGLE[1].Z = z;
+
+    list[index].TRIANGLE[2].X = x;
+    list[index].TRIANGLE[2].Y = y;
+    list[index].TRIANGLE[2].Z = z-b;
+
+    list[index+1].TRIANGLE[0].X = x+l;
+    list[index+1].TRIANGLE[0].Y = y;
+    list[index+1].TRIANGLE[0].Z = z;
+
+    list[index+1].TRIANGLE[1].X = x;
+    list[index+1].TRIANGLE[1].Y = y;
+    list[index+1].TRIANGLE[1].Z = z-b;
+
+    list[index+1].TRIANGLE[2].X = x+l;
+    list[index+1].TRIANGLE[2].Y = y;
+    list[index+1].TRIANGLE[2].Z = z-b;
+}
+
+void obj_rectangle_0007(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z, float l, float b){
+    list[index].TRIANGLE[0].X = x;
+    list[index].TRIANGLE[0].Y = y;
+    list[index].TRIANGLE[0].Z = z;
+
+    list[index].TRIANGLE[1].X = x;
+    list[index].TRIANGLE[1].Y = y+l;
+    list[index].TRIANGLE[1].Z = z;
+
+    list[index].TRIANGLE[2].X = x;
+    list[index].TRIANGLE[2].Y = y;
+    list[index].TRIANGLE[2].Z = z-b;
+
+    list[index+1].TRIANGLE[0].X = x;
+    list[index+1].TRIANGLE[0].Y = y+l;
+    list[index+1].TRIANGLE[0].Z = z;
+
+    list[index+1].TRIANGLE[1].X = x;
+    list[index+1].TRIANGLE[1].Y = y;
+    list[index+1].TRIANGLE[1].Z = z-b;
+
+    list[index+1].TRIANGLE[2].X = x;
+    list[index+1].TRIANGLE[2].Y = y+l;
+    list[index+1].TRIANGLE[2].Z = z-b;
+}
+
+void obj_talldefense_0002(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z){
+    int i, j;
+    for (i=0; i<2; ++i){
+        obj_rectangle_0006(list, index+12*i, x, y, z, 50.0f, 150.0f);
+        fill_color(list, index+12*i, 2, 247, 255, 0);
+        obj_rectangle_0006(list, index+2+12*i, x+50.0f, y, z, 50.0f, 150.0f);
+        fill_color(list, index+2+12*i, 2, 0, 0, 255);
+        obj_rectangle_0006(list, index+4+12*i, x, y, z-150.0f, 50.0f, 37.5f);
+        fill_color(list, index+4+12*i, 2, 255, 140, 0);
+        obj_rectangle_0006(list, index+6+12*i, x+50.0f, y, z-150.0f, 50.0f, 37.5f);
+        fill_color(list, index+6+12*i, 2, 247, 255, 0);
+        obj_rectangle_0006(list, index+8+12*i, x, y, z-187.5f, 50.0f, 12.5f);
+        fill_color(list, index+8+12*i, 2, 247, 255, 0);
+        obj_rectangle_0006(list, index+10+12*i, x+50.0f, y, z-187.5f, 50.0f, 12.5f);
+        fill_color(list, index+10+12*i, 2, 124, 252, 0);
+    }
+    for (i=12; i<24; ++i){
+        for (j=0; j<3; ++j){
+            list[index+i].TRIANGLE[j].Y += 100.0f;
+        }
+    }
+    for (i=2; i<4; ++i){
+        obj_rectangle_0007(list, index+12*i, x, y, z, 50.0f, 150.0f);
+        fill_color(list, index+12*i, 2, 247, 255, 0);
+        obj_rectangle_0007(list, index+2+12*i, x, y+50.0f, z, 50.0f, 150.0f);
+        fill_color(list, index+2+12*i, 2, 0, 0, 255);
+        obj_rectangle_0007(list, index+4+12*i, x, y, z-150.0f, 50.0f, 37.5f);
+        fill_color(list, index+4+12*i, 2, 255, 140, 0);
+        obj_rectangle_0007(list, index+6+12*i, x, y+50.0f, z-150.0f, 50.0f, 37.5f);
+        fill_color(list, index+6+12*i, 2, 247, 255, 0);
+        obj_rectangle_0007(list, index+8+12*i, x, y, z-187.5f, 50.0f, 12.5f);
+        fill_color(list, index+8+12*i, 2, 247, 255, 0);
+        obj_rectangle_0007(list, index+10+12*i, x, y+50.0f, z-187.5f, 50.0f, 12.5f);
+        fill_color(list, index+10+12*i, 2, 124, 252, 0);
+    }
+    for (i=36; i<48; ++i){
+        for (j=0; j<3; ++j){
+            list[index+i].TRIANGLE[j].X += 100.0f;
+        }
+    }
+}
+
+void obj_cuboid_0002(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z, int quadrant, float a, float b, float c){
+	int i, j;
+	int sx=1, sy=1, sz=1;
+	switch (quadrant){
+		case 1:
+			break;
+		case 2:
+			sx = -1;
+			break;
+		case 3:
+			sx = -1;
+			sy = -1;
+			break;
+		case 4:
+			sz = -1;
+			sy = -1;
+			break;
+		case 5:
+			sz = -1;
+			break;
+		case 6:
+			sz = -1;
+			sx = -1;
+			break;
+		case 7:
+			sz = -1;
+			sx = -1;
+			sy = -1;
+			break;
+		case 8:
+			sz = -1;
+			sy = -1;
+			break;
+	}
+
+	list[index].TRIANGLE[0].X = x;
+
+	list[index].TRIANGLE[0].Y = y;
+	list[index].TRIANGLE[0].Z = z;
+
+	list[index].TRIANGLE[1].X = x;
+	list[index].TRIANGLE[1].Y = y;
+	list[index].TRIANGLE[1].Z = sz*c + z;
+
+	list[index].TRIANGLE[2].X = sx*a + x;
+	list[index].TRIANGLE[2].Y = y;
+	list[index].TRIANGLE[2].Z = sz*c + z;
+
+	list[index + 1].TRIANGLE[0].X = x;
+	list[index + 1].TRIANGLE[0].Y = y;
+	list[index + 1].TRIANGLE[0].Z = z;
+
+	list[index + 1].TRIANGLE[1].X = sx*a + x;
+	list[index + 1].TRIANGLE[1].Y = y;
+	list[index + 1].TRIANGLE[1].Z = z;
+
+	list[index + 1].TRIANGLE[2].X = sx*a + x;
+	list[index + 1].TRIANGLE[2].Y = y;
+	list[index + 1].TRIANGLE[2].Z = sz*c + z;
+
+	list[index + 2].TRIANGLE[0].X = x;
+	list[index + 2].TRIANGLE[0].Y = y;
+	list[index + 2].TRIANGLE[0].Z = z;
+
+	list[index + 2].TRIANGLE[1].X = x;
+	list[index + 2].TRIANGLE[1].Y = y;
+	list[index + 2].TRIANGLE[1].Z = sz*c + z;
+
+	list[index + 2].TRIANGLE[2].X = x;
+	list[index + 2].TRIANGLE[2].Y = sy*b + y;
+	list[index + 2].TRIANGLE[2].Z = sz*c + z;
+
+	list[index + 3].TRIANGLE[0].X = x;
+	list[index + 3].TRIANGLE[0].Y = y;
+	list[index + 3].TRIANGLE[0].Z = z;
+
+	list[index + 3].TRIANGLE[1].X = x;
+	list[index + 3].TRIANGLE[1].Y = sy*b + y;
+	list[index + 3].TRIANGLE[1].Z = z;
+
+	list[index + 3].TRIANGLE[2].X = x;
+	list[index + 3].TRIANGLE[2].Y = sy*b + y;
+	list[index + 3].TRIANGLE[2].Z = sz*c + z;
+
+	for (i=0; i<6; ++i){
+		for (j=0; j<3; ++j){
+			list[index + i + 4].TRIANGLE[j].X = list[index + i].TRIANGLE[j].X;
+			list[index + i + 4].TRIANGLE[j].Y = list[index + i].TRIANGLE[j].Y;
+			list[index + i + 4].TRIANGLE[j].Z = list[index + i].TRIANGLE[j].Z;
+		}
+	}
+
+	//Opposite faces
+	for (i=0; i<2; ++i){
+		for (j=0; j<3; ++j){
+			list[index + i + 4].TRIANGLE[j].Y += sy*b;
+		}
+	}
+	for (i=0; i<2; ++i){
+		for (j=0; j<3; ++j){
+			list[index + i + 6].TRIANGLE[j].X += sx*a;
+		}
+	}
+	for (i=0; i<2; ++i){
+		for (j=0; j<3; ++j){
+			list[index + i + 8].TRIANGLE[j].Z += sz*c;
+		}
+	}
+
+}
+
+
+#define WALL_0004_SIZE(a, b) (8 * 2 * (b + 1) * a + 2)
+void obj_wall_0004(struct TRIANGLE_3D_FLOAT *list, int index, float x, float y, float z, int wall_height, int wall_length, unsigned char red, unsigned char green, unsigned char blue){
+	int i, j;
+	int c1 = 0;
+	int c2 = 1;
+	for (i=0; i<wall_height; ++i){
+		c1 = 0;
+		c2 = 1;
+
+		obj_cuboid_0002(list, index + 8 * (i * 2 * (wall_length + 1)), x, y, z - 25.0f * (i * 2 + 1), 1, 25.0f, 25.0f, 25.0f);
+		c1 = !c1;
+
+		fill_color(list, index + 8 * (i * 2 * (wall_length + 1)), 8, c1 ? red>>1 : red, c1 ? green>>1 : green, c1 ? blue>>1 : blue);
+		for (j=0; j<wall_length; ++j){
+			obj_cuboid_0002(list, index + 8 * (i * 2 * (wall_length + 1) + j * 2 + 1), x + (j * 50.0f), y, z - 25.0f * i * 2, 1, 50.0f, 25.0f, 25.0f);
+			c2 = !c2;
+			fill_color(list, index + 8 * (i * 2 * (wall_length + 1) + j * 2 + 1), 8, c2 ? red>>1 : red, c2 ? green>>1 : green, c2 ? blue>>1 : blue);
+
+			obj_cuboid_0002(list, index + 8 * (i * 2 * (wall_length + 1) + j * 2 + 2), x + (j * 50.0f) + 25.0f, y, z - 25.0f * (i * 2 + 1), 1, 50.0f, 25.0f, 25.0f);
+			c1 = !c1;
+
+			fill_color(list, index + 8 * (i * 2 * (wall_length + 1) + j * 2 + 2), 8, c1 ? red>>1 : red, c1 ? green>>1 : green, c1 ? blue>>1 : blue);
+		}
+		obj_cuboid_0002(list, index + 8 * (i * 2 * (wall_length + 1) + j * 2 + 1), x + (j * 50.0f), y, z - 25.0f * i * 2, 1, 25.0f, 25.0f, 25.0f);
+		c2 = !c2;
+		fill_color(list, index + 8 * (i * 2 * (wall_length + 1) + j * 2 + 1), 8, c2 ? red>>1 : red, c2 ? green>>1 : green, c2 ? blue>>1 : blue);
+	}
+    obj_rectangle_0004(list, index + WALL_0004_SIZE(wall_height, wall_length) - 2, x, y, z - (wall_height) * 25.0f * 2 + 24.9f, wall_length * 50.0f + 25.0f, 25.0f);
+    fill_color(list, index + WALL_0004_SIZE(wall_height, wall_length) - 2, 2, 0, 0, 255);
+}
+
+void obj_talldefense_0003(struct TRIANGLE_3D_FLOAT *list, char *texture, int index, float x, float y, float z){
+    struct POINT_3D_FLOAT point[4];
+    point[0].X = x;
+    point[0].Y = y;
+    point[0].Z = z;
+    point[1].X = x;
+    point[1].Y = y;
+    point[1].Z = z - 200.0f;
+    point[2].X = x + 50.0f;
+    point[2].Y = y;
+    point[2].Z = z;
+    point[3].X = x + 50.0f;
+    point[3].Y = y;
+    point[3].Z = z - 200.0f;
+    obj_rectangle_0001(list, texture, index, point, 50.0f, 200.0f);
+    int i;
+    for (i=0; i<4; ++i){
+        point[i].Y += 50.0f;
+    }
+    obj_rectangle_0001(list, texture, index+2, point, 50.0f, 200.0f);
+    for (i=0; i<4; ++i){
+        point[i].Y -= 50.0f;
+    }
+    for (i=2; i<4; ++i){
+        point[i].X -= 50.0f;
+        point[i].Y += 50.0f;
+    }
+    obj_rectangle_0001(list, texture, index+4, point, 50.0f, 200.0f);
+    for (i=0; i<4; ++i){
+        point[i].X += 50.0f;
+    }
+    obj_rectangle_0001(list, texture, index+6, point, 50.0f, 200.0f);
+}
+
+void obj_wall_0005(struct TRIANGLE_3D_FLOAT *list, char *texture, int index, float x, float y, float z){
+    struct POINT_3D_FLOAT point[4];
+    point[0].X = x;
+    point[0].Y = y;
+    point[0].Z = z;
+    point[1].X = x;
+    point[1].Y = y;
+    point[1].Z = z - 100.0f;
+    point[2].X = x + 50.0f;
+    point[2].Y = y;
+    point[2].Z = z;
+    point[3].X = x + 50.0f;
+    point[3].Y = y;
+    point[3].Z = z - 100.0f;
+    obj_rectangle_0001(list, texture, index, point, 50.0f, 100.0f);
+    int i;
+    for (i=0; i<4; ++i){
+        point[i].Y += 25.0f;
+    }
+    obj_rectangle_0001(list, texture, index+2, point, 50.0f, 100.0f);
+    for (i=0; i<4; ++i){
+        point[i].Y -= 25.0f;
+    }
+    for (i=2; i<4; ++i){
+        point[i].X -= 50.0f;
+        point[i].Y += 25.0f;
+    }
+    obj_rectangle_0001(list, texture, index+4, point, 50.0f, 100.0f);
+    for (i=0; i<4; ++i){
+        point[i].X += 50.0f;
+    }
+    obj_rectangle_0001(list, texture, index+6, point, 50.0f, 100.0f);
+}
+
+void obj_rectangle_0008(struct TRIANGLE_3D_FLOAT *list, char *texture, int index, float x, float y, float z, float l, float b, int tex_x, int tex_y, int ori){
+    list[index].TEXTURE = texture;
+    list[index].IS_TEXTURE = ori;
+    list[index+1].IS_TEXTURE = ori+1;
+    list[index+1].TEXTURE = NULL;
+    list[index].TEXTURE_X = tex_x;
+    list[index].TEXTURE_Y = tex_y;
+    struct POINT_3D_FLOAT point[4];
+    point[0].X = x;
+    point[0].Y = y;
+    point[0].Z = z;
+    point[1].X = x;
+    point[1].Y = y + b;
+    point[1].Z = z;
+    point[2].X = x + l;
+    point[2].Y = y;
+    point[2].Z = z;
+    point[3].X = x + l;
+    point[3].Y = y + b;
+    point[3].Z = z;
+    memcpy(list[index].TRIANGLE, point, 3 * sizeof(struct POINT_3D_FLOAT));
+    memcpy(list[index+1].TRIANGLE, point+1, 3 * sizeof(struct POINT_3D_FLOAT));
+}
+
 int main(int argc, char *argv[]) {
     SDL_Event event;
     SDL_Renderer *renderer;
@@ -642,46 +1090,97 @@ int main(int argc, char *argv[]) {
 	float *depth_buffer = malloc(RADIUS*RADIUS*4 * sizeof(float));
 
 	//List of triangle locations
-	struct TRIANGLE_3D_FLOAT *list = malloc(14 * sizeof(struct TRIANGLE_3D_FLOAT));
-	memset((void *)list, 0, 14 * sizeof(struct TRIANGLE_3D_FLOAT));
+	struct TRIANGLE_3D_FLOAT *list = malloc(TOTAL_SIZE * sizeof(struct TRIANGLE_3D_FLOAT));
+	memset((void *)list, 0, TOTAL_SIZE * sizeof(struct TRIANGLE_3D_FLOAT));
 
-	int index = new_index(list, 14, 14);
+	int index = new_index(list, TOTAL_SIZE, TOTAL_SIZE);
 
-	char *texture_map = malloc(3*TEXTURE_LENGTH*TEXTURE_LENGTH + 12);
+	char *texture_map = malloc(3*10000 + T_S_XY(50, 200));
 	FILE *fPtr;
 
 	if ((fPtr = fopen(input_texture_file, "rb")) == NULL){
 	    printf("Error\n");
 	    return 0;
 	}
-	fread(texture_map, TEXTURE_LENGTH*TEXTURE_LENGTH*3+12, 1, fPtr);
+	fread(texture_map, 10000*3+T_S_XY(50, 200), 1, fPtr);
 	fclose(fPtr);
 
-	//Wall with orange fruit texture
-	obj_wall_0003(list, texture_map, index, -50.0f, -150.0f, 200.0f, 100.0f, 50.0f, 50.0f);
 
-	//Draw platform with red and green
-    obj_rectangle_0003(list, 12, -100.0f, -150.0f, 150.0f, 250.0f, 200.0f);
-    fill_color(list, 12, 1, 250, 0, 0);
-    fill_color(list, 13, 1, 0, 250, 0);
+	char *texture_map_2 = malloc(3*5000 + T_S_XY(50, 100));
+	//FILE *fPtr;
+
+	if ((fPtr = fopen(input_texture_file_2, "rb")) == NULL){
+	    printf("Error\n");
+	    return 0;
+	}
+	fread(texture_map_2, 5000*3+T_S_XY(50, 100), 1, fPtr);
+	fclose(fPtr);
+
+
+	char *texture_map_3 = malloc(3*2500 + T_S_XY(50, 50));
+	//FILE *fPtr;
+
+	if ((fPtr = fopen(input_texture_file_3, "rb")) == NULL){
+	    printf("Error\n");
+	    return 0;
+	}
+	fread(texture_map_3, 2500*3+T_S_XY(50, 50), 1, fPtr);
+	fclose(fPtr);
+
+    char *texture_map_4 = malloc(3*1250 + T_S_XY(50, 25));
+	//FILE *fPtr;
+
+	if ((fPtr = fopen(input_texture_file_4, "rb")) == NULL){
+	    printf("Error\n");
+	    return 0;
+	}
+	fread(texture_map_4, 1250*3+T_S_XY(50, 25), 1, fPtr);
+	fclose(fPtr);
+
+/*
+	char *texture_map_5 = malloc(3*250000 + T_S_XY(500, 500));
+	//FILE *fPtr;
+
+	if ((fPtr = fopen(input_texture_file_5, "rb")) == NULL){
+	    printf("Error\n");
+	    return 0;
+	}
+	fread(texture_map_5, 250000*3+T_S_XY(500, 500), 1, fPtr);
+	fclose(fPtr);
+*/
+    obj_talldefense_0003(list, texture_map, index, -100.0f, 100.0f, 400.0f);
+    obj_rectangle_0008(list, texture_map_3, index+8, -100.0f, 100.0f, 200.0f, 50.0f, 50.0f, 50.0f, 50.0f, 5);
+    //fill_color(list, index+8, 2, 255, 0, 0);
+    obj_wall_0005(list, texture_map_2, index+10, -100.0f, -100.0f, 400.0f);
+    obj_rectangle_0008(list, texture_map_4, index+18, -100.0f, -100.0f, 300.0f, 50.0f, 25.0f, 50.0f, 25.0f, 5);
+    obj_rectangle_0004(list, index+20, -500.0f, -500.0f, 400.0f, 1500.0f, 1500.0f);
+    fill_color(list, index+20, 2, 200, 191, 231);
+    //obj_rectangle_0008(list, texture_map_5, index+20, -500.0f, -500.0f, 400.0f, 1500.0f, 1500.0f, 500.0f, 500.0f, 1);
+    //obj_rectangle_0004(list, index+18, -100.0f, -100.0f, 300.0f, 50.0f, 25.0f);
+    //fill_color(list, index+18, 2, 255, 0, 0);
+    //obj_wall_0004(list, index + 48, -225.0f, -150.0f, 500.0f, 3, 10, 255, 0, 0);
 
     //Z buffer and draw it
-    zbuffer(list, 14, depth_buffer, frame_buffer);
+    zbuffer(list, TOTAL_SIZE, depth_buffer, frame_buffer);
     draw_buffer(renderer, frame_buffer);
 
     while (1) {
         //Keep rotating the camera bit by bit
-        rotate_camera(list, index, 14, 0.01f);
-        zbuffer(list, 14, depth_buffer, frame_buffer);
+        /*
+        rotate_camera(list, index, TOTAL_SIZE, 0.01f);
+        zbuffer(list, TOTAL_SIZE, depth_buffer, frame_buffer);
         draw_buffer(renderer, frame_buffer);
-        SDL_Delay(100);
+        SDL_Delay(100);*/
         if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
             break;
     }
 
-    delete_index(list, index, 14);
+    delete_index(list, index, TOTAL_SIZE);
 
     free(texture_map);
+    free(texture_map_2);
+    free(texture_map_3);
+    free(texture_map_4);
 	free(list);
 	free(depth_buffer);
 	free(frame_buffer);
