@@ -6,7 +6,7 @@
 
 #define T_S_XY(a, b) (13 + ((a) > 99 ? 1 : 0) + ((b) > 99 ? 1 : 0))
 
-#define TOTAL_SIZE 22
+#define TOTAL_SIZE 32
 
 //Length and breadth of square texture or image
 //We read it in the form of binary ppm file
@@ -35,7 +35,7 @@ char *input_texture_file = "guard_tower_2.ppm";
 char *input_texture_file_2 = "wall_1.ppm";
 char *input_texture_file_3 = "red_1.ppm";
 char *input_texture_file_4 = "red_2.ppm";
-//char *input_texture_file_5 = "ground_2.ppm";
+char *input_texture_file_5 = "unit_1.ppm";
 
 //Stores a point
 struct POINT_3D_FLOAT {
@@ -1075,6 +1075,158 @@ void obj_rectangle_0008(struct TRIANGLE_3D_FLOAT *list, char *texture, int index
     memcpy(list[index+1].TRIANGLE, point+1, 3 * sizeof(struct POINT_3D_FLOAT));
 }
 
+void obj_unit_0001(struct TRIANGLE_3D_FLOAT *list, char *texture, int index, float x, float y, float z){
+    struct POINT_3D_FLOAT point[4];
+    point[0].X = x;
+    point[0].Y = y;
+    point[0].Z = z;
+    point[1].X = x;
+    point[1].Y = y;
+    point[1].Z = z - 50.0f;
+    point[2].X = x + 25.0f;
+    point[2].Y = y;
+    point[2].Z = z;
+    point[3].X = x + 25.0f;
+    point[3].Y = y;
+    point[3].Z = z - 50.0f;
+    obj_rectangle_0001(list, texture, index, point, 25.0f, 50.0f);
+    int i;
+    for (i=0; i<4; ++i){
+        point[i].Y += 25.0f;
+    }
+    obj_rectangle_0001(list, texture, index+2, point, 25.0f, 50.0f);
+    for (i=0; i<4; ++i){
+        point[i].Y -= 25.0f;
+    }
+    for (i=2; i<4; ++i){
+        point[i].X -= 25.0f;
+        point[i].Y += 25.0f;
+    }
+    obj_rectangle_0001(list, texture, index+4, point, 25.0f, 50.0f);
+    for (i=0; i<4; ++i){
+        point[i].X += 25.0f;
+    }
+    obj_rectangle_0001(list, texture, index+6, point, 25.0f, 50.0f);
+}
+
+struct GRAPH_EDGE {
+    int A;
+    int B;
+    int LENGTH;
+};
+
+int is_graph_empty(int *vertex, int vertice_count, int end){
+    int i;
+    for (i=0; i<vertice_count; ++i){
+        if (i == end) continue;
+        if (vertex[i] != 0){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void dijkstra(struct GRAPH_EDGE *graph, int graph_length, int *vertex, int vertice_count, int source, int end, int *previous){
+    int count_end=0;
+    int i;
+    int dist[vertice_count];
+    int end_friend[vertice_count];
+    //Vertices are numbered from 0 to vertice_count-1 and if they are removed or not stored in vertex array
+    //1 means available in vertex array and 0 means it is removed
+    //dist contains distance of each vertex to the start
+    //previous contains reference of vertex to the previous vertex of it
+    //end friend contains all the neighbours of end node index has no significance
+    //Clear dist, previous and end friend
+    for (i=0; i<vertice_count; ++i){
+        dist[i] = 10000;
+        previous[i] = -1;
+        end_friend[i] = -1;
+    }
+    //Store neighbours of end vertex
+    for (i=0; i<graph_length; ++i){
+        if (graph[i].B == end){
+            end_friend[count_end++] = graph[i].A;
+        }
+    }
+
+    for (i=0; i<count_end; ++i){
+        //printf("%d ", end_friend[i]);
+    }
+    //printf("\n");
+    int count = count_end;
+    //Source distance would be zero
+    dist[source] = 0;
+    //Is graph empty
+    while (is_graph_empty(vertex, vertice_count, end) == 0){
+        int u;
+        int alt;
+        int v;
+        i = 0;
+        int minimum = 1000;
+        do {
+            if (vertex[i] != 0 && i != end){
+                if (dist[i] < minimum){
+                    //printf("min - %d\n", dist[i]);
+                    minimum = dist[i];
+                    u = i;
+                }
+            }
+            ++i;
+        } while (i < vertice_count);
+        //printf("%d\n", u);
+        //If our vertex is a neighbour of the end node
+        for (i=0; i<count_end; ++i){
+            if (end_friend[i] == u){
+                //printf("Hi %d %d\n", u, count);
+                count--; // We will find one possible path in the loop
+                break;
+            }
+        }
+        //If its the last one
+        if (count == 0){
+            //Find length from last one and the end
+            for (i=0; i<graph_length; ++i){
+                if (graph[i].A == u && graph[i].B == end){
+                    break;
+                }
+            }
+            alt = dist[u] + graph[i].LENGTH;
+            //printf("dist - %d \n", dist[end]);
+            if (alt < dist[end]){
+                dist[end] = alt;
+                previous[end] = u;
+            }
+            //printf("prev - %d \n", previous[end]);
+            return;
+        }
+        vertex[u] = 0;
+        //For the whole graph
+        for (i=0; i<graph_length; ++i){
+            //For all neighbours of u
+            if (graph[i].A == u && vertex[graph[i].B]){
+                v = graph[i].B;
+                //printf(" - %d\n", v);
+                alt = dist[u] + graph[i].LENGTH;
+                //printf(" -- %d\n", alt);
+                if (alt < dist[v]){
+                    dist[v] = alt;
+                    previous[v] = u;
+                }
+            }
+        }
+    }
+    return;
+}
+
+void add_node(struct GRAPH_EDGE *graph, int *box, int loc, int *graph_count, int displacement, int cost){
+    if (box[loc + displacement] == 0){
+        graph[*graph_count].A = loc;
+        graph[*graph_count].B = loc + displacement;
+        graph[*graph_count].LENGTH = cost;
+        (*graph_count)++;
+    }
+}
+
 int main(int argc, char *argv[]) {
     SDL_Event event;
     SDL_Renderer *renderer;
@@ -1137,6 +1289,16 @@ int main(int argc, char *argv[]) {
 	fread(texture_map_4, 1250*3+T_S_XY(50, 25), 1, fPtr);
 	fclose(fPtr);
 
+	char *texture_map_5 = malloc(3*1250 + T_S_XY(25, 50));
+	//FILE *fPtr;
+
+	if ((fPtr = fopen(input_texture_file_5, "rb")) == NULL){
+	    printf("Error\n");
+	    return 0;
+	}
+	fread(texture_map_5, 1250*3+T_S_XY(25, 50), 1, fPtr);
+	fclose(fPtr);
+
 /*
 	char *texture_map_5 = malloc(3*250000 + T_S_XY(500, 500));
 	//FILE *fPtr;
@@ -1155,6 +1317,9 @@ int main(int argc, char *argv[]) {
     obj_rectangle_0008(list, texture_map_4, index+18, -100.0f, -100.0f, 300.0f, 50.0f, 25.0f, 50.0f, 25.0f, 5);
     obj_rectangle_0004(list, index+20, -500.0f, -500.0f, 400.0f, 1500.0f, 1500.0f);
     fill_color(list, index+20, 2, 200, 191, 231);
+    obj_unit_0001(list, texture_map_5, index + 22, 100.0f, 50.0f, 400.0f);
+    obj_rectangle_0004(list, index+30, 100.0f, 50.0f, 350.0f, 25.0f, 25.0f);
+    fill_color(list, index+30, 2, 181, 230, 29);
     //obj_rectangle_0008(list, texture_map_5, index+20, -500.0f, -500.0f, 400.0f, 1500.0f, 1500.0f, 500.0f, 500.0f, 1);
     //obj_rectangle_0004(list, index+18, -100.0f, -100.0f, 300.0f, 50.0f, 25.0f);
     //fill_color(list, index+18, 2, 255, 0, 0);
@@ -1164,19 +1329,64 @@ int main(int argc, char *argv[]) {
     zbuffer(list, TOTAL_SIZE, depth_buffer, frame_buffer);
     draw_buffer(renderer, frame_buffer);
 
+    struct GRAPH_EDGE *graph = malloc(sizeof(struct GRAPH_EDGE) * 1000);
+    int box[49] =
+    {
+        1, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 1,
+        1, 1, 1, 1, 1, 1, 1
+    };
+    int i;
+    int vertex[49];
+    for (i=0; i<49; ++i){
+        if (box[i] == 0)
+            vertex[i] = 1;
+        else
+            vertex[i] = 0;
+    }
+    int previous[49];
+    int graph_count=0;
+    for (i=0; i<49; ++i){
+        if (box[i] == 0){
+            add_node(graph, box, i, &graph_count, -7, 100);
+            add_node(graph, box, i, &graph_count, -1, 100);
+            add_node(graph, box, i, &graph_count, +1, 100);
+            add_node(graph, box, i, &graph_count, +7, 100);
+            add_node(graph, box, i, &graph_count, -8, 141);
+            add_node(graph, box, i, &graph_count, -6, 141);
+            add_node(graph, box, i, &graph_count, +6, 141);
+            add_node(graph, box, i, &graph_count, +8, 141);
+        }
+    }
+    dijkstra(graph, graph_count, vertex, 49, 12, 33, previous);
+    int node = 33;
+    box[node] = 4;
+    do {
+        node = previous[node];
+        box[node] = 2;
+    } while (node != 12);
+    box[node] = 3;
+    int j;
+    for (i=0; i<7; ++i){
+        for (j=0; j<7; ++j){
+            printf("%d ", box[i*7+j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
     while (1) {
-        //Keep rotating the camera bit by bit
-        /*
-        rotate_camera(list, index, TOTAL_SIZE, 0.01f);
-        zbuffer(list, TOTAL_SIZE, depth_buffer, frame_buffer);
-        draw_buffer(renderer, frame_buffer);
-        SDL_Delay(100);*/
         if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
             break;
     }
 
     delete_index(list, index, TOTAL_SIZE);
 
+    free(graph);
     free(texture_map);
     free(texture_map_2);
     free(texture_map_3);
