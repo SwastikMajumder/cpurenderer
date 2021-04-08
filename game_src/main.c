@@ -6,7 +6,7 @@
 
 #define T_S_XY(a, b) (13 + ((a) > 99 ? 1 : 0) + ((b) > 99 ? 1 : 0))
 
-#define TOTAL_SIZE 32
+#define TOTAL_SIZE 100
 
 //Length and breadth of square texture or image
 //We read it in the form of binary ppm file
@@ -1138,7 +1138,7 @@ void dijkstra(struct GRAPH_EDGE *graph, int graph_length, int *vertex, int verti
     //end friend contains all the neighbours of end node index has no significance
     //Clear dist, previous and end friend
     for (i=0; i<vertice_count; ++i){
-        dist[i] = 10000;
+        dist[i] = 1000000;
         previous[i] = -1;
         end_friend[i] = -1;
     }
@@ -1162,7 +1162,7 @@ void dijkstra(struct GRAPH_EDGE *graph, int graph_length, int *vertex, int verti
         int alt;
         int v;
         i = 0;
-        int minimum = 1000;
+        int minimum = 100000;
         do {
             if (vertex[i] != 0 && i != end){
                 if (dist[i] < minimum){
@@ -1326,54 +1326,63 @@ int main(int argc, char *argv[]) {
     //obj_wall_0004(list, index + 48, -225.0f, -150.0f, 500.0f, 3, 10, 255, 0, 0);
 
     //Z buffer and draw it
-    zbuffer(list, TOTAL_SIZE, depth_buffer, frame_buffer);
-    draw_buffer(renderer, frame_buffer);
-
-    struct GRAPH_EDGE *graph = malloc(sizeof(struct GRAPH_EDGE) * 1000);
-    int box[49] =
-    {
-        1, 1, 1, 1, 1, 1, 1,
-        1, 0, 0, 0, 0, 0, 1,
-        1, 0, 0, 0, 0, 0, 1,
-        1, 0, 0, 1, 1, 1, 1,
-        1, 0, 0, 0, 0, 0, 1,
-        1, 0, 0, 0, 0, 0, 1,
-        1, 1, 1, 1, 1, 1, 1
-    };
+#define GS 20
+    struct GRAPH_EDGE *graph = malloc(sizeof(struct GRAPH_EDGE) * GS*GS*8);
+    int box[GS*GS];
     int i;
-    int vertex[49];
-    for (i=0; i<49; ++i){
+    for (i=0; i<GS*GS; ++i) box[i] = 0;
+    for (i=0; i<GS; ++i) box[i] = 1;
+    for (i=GS*GS-GS; i<GS*GS; ++i) box[i] = 1;
+    for (i=0; i<GS*GS; i+= GS) box[i] = 1;
+    for (i=GS-1; i<GS*GS; i+= GS) box[i] = 1;
+    box[266] = 1;
+    box[267] = 1;
+    box[106] = 1;
+    box[107] = 1;
+    box[86] = 1;
+    box[87] = 1;
+    int vertex[GS*GS];
+    for (i=0; i<GS*GS; ++i){
         if (box[i] == 0)
             vertex[i] = 1;
         else
             vertex[i] = 0;
     }
-    int previous[49];
+    int previous[GS*GS];
     int graph_count=0;
-    for (i=0; i<49; ++i){
+    for (i=0; i<GS*GS; ++i){
         if (box[i] == 0){
-            add_node(graph, box, i, &graph_count, -7, 100);
+            add_node(graph, box, i, &graph_count, -GS, 100);
             add_node(graph, box, i, &graph_count, -1, 100);
             add_node(graph, box, i, &graph_count, +1, 100);
-            add_node(graph, box, i, &graph_count, +7, 100);
-            add_node(graph, box, i, &graph_count, -8, 141);
-            add_node(graph, box, i, &graph_count, -6, 141);
-            add_node(graph, box, i, &graph_count, +6, 141);
-            add_node(graph, box, i, &graph_count, +8, 141);
+            add_node(graph, box, i, &graph_count, +GS, 100);
+            add_node(graph, box, i, &graph_count, -GS-1, 141);
+            add_node(graph, box, i, &graph_count, -GS+1, 141);
+            add_node(graph, box, i, &graph_count, +GS-1, 141);
+            add_node(graph, box, i, &graph_count, +GS+1, 141);
         }
     }
-    dijkstra(graph, graph_count, vertex, 49, 12, 33, previous);
-    int node = 33;
+    //GS*2-2
+    //GS*GS-2*GS+1
+    dijkstra(graph, graph_count, vertex, GS*GS, 154, GS*GS-2*GS+1, previous);
+    int node = GS*GS-2*GS+1;
+    int index_add = 32;
     box[node] = 4;
     do {
         node = previous[node];
         box[node] = 2;
-    } while (node != 12);
+        obj_rectangle_0004(list, index+index_add, (node%GS)*25.0f-RADIUS, RADIUS - ((node-(node%GS))/GS)*25.0f - 25.0f, 399.0f, 25.0f, 25.0f);
+        fill_color(list, index+index_add, 2, 255, 0, 0);
+        index_add += 2;
+    } while (node != 154);
+    zbuffer(list, TOTAL_SIZE, depth_buffer, frame_buffer);
+    draw_buffer(renderer, frame_buffer);
+
     box[node] = 3;
     int j;
-    for (i=0; i<7; ++i){
-        for (j=0; j<7; ++j){
-            printf("%d ", box[i*7+j]);
+    for (i=0; i<GS; ++i){
+        for (j=0; j<GS; ++j){
+            printf("%d ", box[i*GS+j]);
         }
         printf("\n");
     }
